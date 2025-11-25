@@ -4,11 +4,5 @@
     "api/**/*.ts": {
       "maxDuration": 10
     }
-  },
-  "rewrites": [
-    {
-      "source": "/url/:path*",
-      "destination": "/api/url/:path*"
-    }
-  ]
+  }
 }
