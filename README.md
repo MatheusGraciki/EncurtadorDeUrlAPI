@@ -15,7 +15,7 @@ https://graciki.systems
 
 **Endpoint:**
 ```
-POST /url/create
+POST /create
 ```
 
 **Content-Type:** `application/json`
@@ -23,26 +23,24 @@ POST /url/create
 **Body:**
 ```json
 {
-  "shortUrl": "abc",
   "originalUrl": "https://www.exemplo-url-muito-longa.com/caminho/para/pagina?parametro=valor"
 }
 ```
 
 **Exemplo com cURL:**
 ```bash
-curl -X POST https://graciki.systems/url/create \
+curl -X POST https://graciki.systems/create \
   -H "Content-Type: application/json" \
-  -d '{"shortUrl":"abc","originalUrl":"https://example.com"}'
+  -d '{""originalUrl":"https://example.com"}'
 ```
 
 **Exemplo com Postman/Insomnia:**
 1. Método: `POST`
-2. URL: `https://graciki.systems/url/create`
+2. URL: `https://graciki.systems/create`
 3. Headers: `Content-Type: application/json`
 4. Body (JSON):
 ```json
 {
-  "shortUrl": "meu-link",
   "originalUrl": "https://www.google.com"
 }
 ```
@@ -83,13 +81,13 @@ GET /url/:shortUrl
 
 **Exemplo com cURL:**
 ```bash
-curl -i https://www.graciki.systems/url/abc
+curl -i https://www.graciki.systems/abc
 ```
 
 **Exemplo no Browser:**
 Acesse diretamente:
 ```
-https://www.graciki.systems/url/as
+https://www.graciki.systems/as
 ```
 Você será **redirecionado automaticamente** para a URL original.
 
@@ -124,7 +122,7 @@ Location: https://example.com
 
 **Passo 1: Criar a URL curta**
 ```bash
-curl -X POST https://www.graciki.systems/url/create \
+curl -X POST https://www.graciki.systems/create \
   -H "Content-Type: application/json" \
   -d '{
     "shortUrl": "github",
@@ -139,7 +137,7 @@ Status: 201 Created
 
 **Passo 2: Acessar a URL curta**
 ```bash
-curl -i https://www.graciki.systems/url/github
+curl -i https://www.graciki.systems/github
 ```
 
 Resposta:
@@ -150,7 +148,7 @@ Location: https://github.com/MatheusGraciki
 
 Ou no browser, acesse:
 ```
-https://www.graciki.systems/url/github
+https://www.graciki.systems/github
 ```
 E você será redirecionado para `https://github.com/MatheusGraciki`.
 
@@ -160,25 +158,25 @@ E você será redirecionado para `https://github.com/MatheusGraciki`.
 
 ```bash
 # URL 1
-curl -X POST https://www.graciki.systems/url/create \
+curl -X POST https://www.graciki.systems/create \
   -H "Content-Type: application/json" \
   -d '{"shortUrl":"youtube","originalUrl":"https://www.youtube.com"}'
 
 # URL 2
-curl -X POST https://www.graciki.systems/url/create \
+curl -X POST https://www.graciki.systems/create \
   -H "Content-Type: application/json" \
   -d '{"shortUrl":"google","originalUrl":"https://www.google.com"}'
 
 # URL 3
-curl -X POST https://www.graciki.systems/url/create \
+curl -X POST https://www.graciki.systems/create \
   -H "Content-Type: application/json" \
   -d '{"shortUrl":"dev","originalUrl":"https://developer.mozilla.org"}'
 ```
 
 Depois acesse:
-- https://www.graciki.systems/url/youtube
-- https://www.graciki.systems/url/google
-- https://www.graciki.systems/url/dev
+- https://www.graciki.systems/youtube
+- https://www.graciki.systems/google
+- https://www.graciki.systems/dev
 
 ---
 
@@ -237,12 +235,12 @@ Servidor iniciará em: `http://localhost:3000`
 **Testar endpoints locais:**
 ```bash
 # Criar URL
-curl -X POST http://localhost:3000/url/create \
+curl -X POST http://localhost:3000/create \
   -H "Content-Type: application/json" \
   -d '{"shortUrl":"teste","originalUrl":"https://example.com"}'
 
 # Acessar URL
-curl -i http://localhost:3000/url/teste
+curl -i http://localhost:3000/teste
 ```
 
 ### Build
@@ -263,12 +261,12 @@ npm start
 
 ## 🔗 Integração com Domínio Personalizado
 
-Para usar um domínio próprio (ex: `meudominio.com/url/abc`):
+Para usar um domínio próprio (ex: `meudominio.com/abc`):
 
 1. Registre um domínio (Namecheap, GoDaddy, Google Domains, etc.)
 2. Acesse Vercel Dashboard → Seu Projeto → Settings → Domains
 3. Adicione o domínio e siga as instruções de DNS
-4. Após propagação DNS, seu encurtador funcionará em: `https://meudominio.com/url/abc`
+4. Após propagação DNS, seu encurtador funcionará em: `https://meudominio.com/abc`
 
 ---
 
@@ -281,7 +279,7 @@ As URLs criadas expiram automaticamente após **30 dias** no Redis. Após esse p
 ## 🐛 Troubleshooting
 
 ### Erro: "Essa url encurtada já está em uso"
-A chave já foi criada. Escolha outro `shortUrl`.
+A chave já foi criada.
 
 ### Erro: "Essa url encurtada não existe"
 A chave não existe no banco ou expirou. Crie uma nova URL.
