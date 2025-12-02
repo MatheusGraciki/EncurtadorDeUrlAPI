@@ -1,8 +1,8 @@
 import { createShortUrlDb, getOriginalUrlDb } from "./db";
 
-export async function createShortUrlService(shortUrl: string, originalUrl: string) {
+export async function createShortUrlService(originalUrl: string) {
   try {
-    const data = await createShortUrlDb(shortUrl, originalUrl);
+    const data = await createShortUrlDb(originalUrl);
     return data;
   } catch (error) {
     throw error;

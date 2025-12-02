@@ -3,11 +3,9 @@ import { createShortUrlService, getOriginalUrlService } from "./service";
 
 export async function createUrl(req: Request, res: Response) {
   try {
-    const { shortUrl, originalUrl } = req.body; 
-
-    await createShortUrlService(shortUrl, originalUrl);
-
-    return res.sendStatus(201);
+    const { originalUrl } = req.body; 
+    const data = await createShortUrlService( originalUrl);
+    return res.status(201).json({ data });
 
   } catch (error: any) {
     return res.status(400).json({error: error.message });

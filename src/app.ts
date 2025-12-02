@@ -7,6 +7,6 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-app.use("/url", urlRoutes);
+app.use("/", urlRoutes);
 
 export default app;
