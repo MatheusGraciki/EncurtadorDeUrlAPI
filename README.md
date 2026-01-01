@@ -1,293 +1,131 @@
-# URL Shortener API
+## 🧠 Backend & Arquitetura
 
-API serverless para encurtar URLs, desenvolvida com Express, TypeScript e Vercel. Utiliza Upstash Redis como banco de dados.
+O backend deste projeto foi desenvolvido com foco em simplicidade, baixo custo e escalabilidade, simulando um cenário real de produção.
 
-## 🚀 Acesso
+A API é responsável por criar e resolver URLs encurtadas, seguindo um modelo stateless, onde todo o estado da aplicação fica fora do servidor. Isso facilita escalar, manter e evoluir o sistema sem dependência de instâncias específicas.
 
-**URL Base (Produção):**
-```
+
+---
+
+## 🔄 Como a API funciona
+
+O cliente envia uma URL longa
+
+A API valida os dados e gera um identificador curto
+
+A relação entre URL curta → URL original é armazenada no Redis
+
+Quando a URL curta é acessada:
+
+A API consulta o Redis
+
+Retorna um redirect HTTP 302 se existir
+
+Retorna 404 se não existir ou tiver expirado
+
+
+
+Simples, rápido e eficiente.
+
+
+---
+
+## ☁️ Infraestrutura & Deploy
+
+A aplicação roda em Google Cloud Run, utilizando containers Docker.
+
+Por que Cloud Run?
+
+Escala automaticamente conforme o tráfego
+
+Quando não há requisições, nenhuma instância fica ativa
+
+Reduz custo sem abrir mão de performance
+
+
+A aplicação é empacotada em um container Docker, garantindo consistência entre ambiente local e produção.
+
+
+---
+
+## 🔁 CI/CD
+
+O deploy é totalmente automatizado usando GitHub Actions.
+
+A cada push na branch master:
+
+1. A imagem Docker é buildada
+
+
+2. Publicada no Artifact Registry
+
+
+3. Um novo deploy é feito automaticamente no Cloud Run
+
+
+
+Isso elimina deploy manual e reduz risco de erro humano.
+
+
+---
+
+## 🗄️ Persistência com Redis
+
+O armazenamento das URLs é feito com Upstash Redis (serverless).
+
+Baixa latência
+
+Modelo chave → valor ideal para esse caso
+
+URLs possuem TTL de 30 dias, evitando crescimento infinito da base
+
+
+Nenhum dado sensível fica no código — tudo é configurado via variáveis de ambiente.
+
+
+---
+
+## 🌐 Domínio Customizado
+
+A API está disponível via domínio próprio:
+
 https://graciki.systems
-```
 
-## 📚 Endpoints
+O domínio foi configurado via DNS e integrado ao Cloud Run, permitindo URLs curtas e profissionais sem depender da URL padrão do provedor.
 
-### 1. Criar uma URL Curta (POST)
-
-**Endpoint:**
-```
-POST /create
-```
-
-**Content-Type:** `application/json`
-
-**Body:**
-```json
-{
-  "originalUrl": "https://www.exemplo-url-muito-longa.com/caminho/para/pagina?parametro=valor"
-}
-```
-
-**Exemplo com cURL:**
-```bash
-curl -X POST https://graciki.systems/create \
-  -H "Content-Type: application/json" \
-  -d '{""originalUrl":"https://example.com"}'
-```
-
-**Exemplo com Postman/Insomnia:**
-1. Método: `POST`
-2. URL: `https://graciki.systems/create`
-3. Headers: `Content-Type: application/json`
-4. Body (JSON):
-```json
-{
-  "originalUrl": "https://www.google.com"
-}
-```
-
-**Respostas:**
-
-✅ **Sucesso (201 Created):**
-```
-Status: 201
-Body: (vazio)
-```
-
-❌ **Erro - URL curta já em uso (400 Bad Request):**
-```json
-{
-  "error": "Essa url encurtada já está em uso, escolha outra."
-}
-```
-
-❌ **Erro - Dados inválidos (400 Bad Request):**
-```json
-{
-  "error": "Mensagem de erro específica"
-}
-```
 
 ---
 
-### 2. Acessar uma URL Curta (GET) — Redireciona
+## 📈 Escalabilidade & Custos
 
-**Endpoint:**
-```
-GET /url/:shortUrl
-```
+Escala automática conforme demanda
 
-**Parâmetros:**
-- `:shortUrl` — o identificador único que você criou (ex: `abc`, `meu-link`)
+Sem tráfego = custo praticamente zero
 
-**Exemplo com cURL:**
-```bash
-curl -i https://www.graciki.systems/abc
-```
+Limites definidos para evitar gastos inesperados:
 
-**Exemplo no Browser:**
-Acesse diretamente:
-```
-https://www.graciki.systems/as
-```
-Você será **redirecionado automaticamente** para a URL original.
+1 vCPU
 
-**Respostas:**
+256MB de memória
 
-✅ **Sucesso - Redirect (302 Found):**
-```
-Status: 302
-Location: https://example.com
-```
-(O browser redireciona automaticamente)
+Máximo de 3 instâncias
 
-❌ **Erro - URL curta não encontrada (404 Not Found):**
-```json
-{
-  "error": "Essa url encurtada não existe"
-}
-```
 
-❌ **Erro - Falta parâmetro (400 Bad Request):**
-```json
-{
-  "error": "shortUrl param is required"
-}
-```
+
 
 ---
 
-## 💡 Exemplos de Uso Completo
+## 🧩 Principais decisões técnicas
 
-### Exemplo 1: Criar e Acessar uma URL Curta
+Cloud Run em vez de VM → menos manutenção
 
-**Passo 1: Criar a URL curta**
-```bash
-curl -X POST https://www.graciki.systems/create \
-  -H "Content-Type: application/json" \
-  -d '{
-    "shortUrl": "github",
-    "originalUrl": "https://github.com/MatheusGraciki"
-  }'
-```
+Backend stateless → fácil de escalar
 
-Resposta:
-```
-Status: 201 Created
-```
+Redis serverless → performance sem complexidade
 
-**Passo 2: Acessar a URL curta**
-```bash
-curl -i https://www.graciki.systems/github
-```
+CI/CD desde o início → fluxo profissional
 
-Resposta:
-```
-HTTP/2 302 Found
-Location: https://github.com/MatheusGraciki
-```
-
-Ou no browser, acesse:
-```
-https://www.graciki.systems/github
-```
-E você será redirecionado para `https://github.com/MatheusGraciki`.
-
----
-
-### Exemplo 2: Criar Múltiplas URLs
-
-```bash
-# URL 1
-curl -X POST https://www.graciki.systems/create \
-  -H "Content-Type: application/json" \
-  -d '{"shortUrl":"youtube","originalUrl":"https://www.youtube.com"}'
-
-# URL 2
-curl -X POST https://www.graciki.systems/create \
-  -H "Content-Type: application/json" \
-  -d '{"shortUrl":"google","originalUrl":"https://www.google.com"}'
-
-# URL 3
-curl -X POST https://www.graciki.systems/create \
-  -H "Content-Type: application/json" \
-  -d '{"shortUrl":"dev","originalUrl":"https://developer.mozilla.org"}'
-```
-
-Depois acesse:
-- https://www.graciki.systems/youtube
-- https://www.graciki.systems/google
-- https://www.graciki.systems/dev
-
----
-
-## 🛠 Tecnologias
-
-- **Runtime:** Node.js 20.x
-- **Framework:** Express.js
-- **Linguagem:** TypeScript
-- **Banco de Dados:** Upstash Redis
-- **Deploy:** Vercel (Serverless Functions)
-- **Dependências principais:**
-  - `express` — Framework Web
-  - `@upstash/redis` — Cliente Redis serverless
-  - `serverless-http` — Adaptador para funções serverless
-  - `dotenv` — Variáveis de ambiente
-
----
-
-## 📦 Desenvolvimento Local
-
-### Pré-requisitos
-- Node.js 18+
-- npm ou yarn
-
-### Instalação
-
-```bash
-# Clonar o repositório
-git clone https://github.com/MatheusGraciki/EncurtadorDeUrl.git
-cd EncurtadorDeUrl/backend
-
-# Instalar dependências
-npm install
-```
-
-### Variáveis de Ambiente
-
-Crie um arquivo `.env` na raiz do projeto:
-
-```env
-REDIS_URL=https://seu-upstash-endpoint.upstash.io
-REDIS_TOKEN=seu-token-aqui
-```
-
-Obtenha as credenciais do Upstash Redis em: https://upstash.com
-
-### Executar Localmente
-
-**Modo desenvolvimento:**
-```bash
-npm run dev
-```
-
-Servidor iniciará em: `http://localhost:3000`
-
-**Testar endpoints locais:**
-```bash
-# Criar URL
-curl -X POST http://localhost:3000/create \
-  -H "Content-Type: application/json" \
-  -d '{"shortUrl":"teste","originalUrl":"https://example.com"}'
-
-# Acessar URL
-curl -i http://localhost:3000/teste
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-Saída compilada em: `dist/`
-
-### Iniciar Build Compilado
-
-```bash
-npm start
-```
-
----
-
-## 🔗 Integração com Domínio Personalizado
-
-Para usar um domínio próprio (ex: `meudominio.com/abc`):
-
-1. Registre um domínio (Namecheap, GoDaddy, Google Domains, etc.)
-2. Acesse Vercel Dashboard → Seu Projeto → Settings → Domains
-3. Adicione o domínio e siga as instruções de DNS
-4. Após propagação DNS, seu encurtador funcionará em: `https://meudominio.com/abc`
-
----
-
-## ⏰ Expiração de URLs
-
-As URLs criadas expiram automaticamente após **30 dias** no Redis. Após esse período, ao tentar acessar uma URL expirada, você receberá erro 404.
-
----
-
-## 🐛 Troubleshooting
-
-### Erro: "Essa url encurtada já está em uso"
-A chave já foi criada.
-
-### Erro: "Essa url encurtada não existe"
-A chave não existe no banco ou expirou. Crie uma nova URL.
-
-### Erro: Conexão com Redis
-Verifique se `REDIS_URL` e `REDIS_TOKEN` estão corretos no `.env` ou no Vercel (Production Environment Variables).
-
----
+Docker → previsibilidade no deploy
 
 ## 📝 Licença
 
