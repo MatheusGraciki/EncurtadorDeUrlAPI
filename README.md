@@ -142,4 +142,4 @@ Este projeto é open-source. Sinta-se livre para usar, modificar e distribuir.
 
 ## 📧 Suporte
 
-Para reportar bugs ou sugerir funcionalidades, abra uma issue no repositório GitHub.
+Para reportar bugs ou sugerir funcionalidades, abra uma issue no repositório GitHub.1
