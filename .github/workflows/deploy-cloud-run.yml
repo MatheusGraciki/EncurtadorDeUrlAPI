@@ -56,7 +56,7 @@ jobs:
             --cpu 1 \
             --max-instances 1 \
             --concurrency 1
-  notify-sucess :
+  notify-sucess:
     needs: deploy
     runs-on: ubuntu-latest
     if: needs.deploy.result == 'success'
