@@ -12,8 +12,41 @@ env:
   IMAGE: url-shortener
 
 jobs:
+  security-checks:
+    name: Security Checks (PROD)
+    runs-on: ubuntu-22.04
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 🔐 Secrets scan
+      - name: Gitleaks - Secrets Scan
+        uses: gitleaks/gitleaks-action@v2
+
+      # 📦 Dependency scan
+      - name: npm audit (HIGH / CRITICAL)
+        run: |
+          npm install
+          npm audit --audit-level=high
+
+      # 🔍 CodeQL
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+
+      - name: Analyze with CodeQL
+        uses: github/codeql-action/analyze@v3
+
   deploy:
-    runs-on: ubuntu-latest
+    name: Deploy
+    needs: security-checks
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
@@ -29,11 +62,10 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Configure Docker for Artifact Registry
+      - name: Configure Docker
         run: |
           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-       
       - name: Build Docker image
         run: |
           docker build -t \
@@ -44,41 +76,52 @@ jobs:
           docker push \
           ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:latest
 
-      
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.SERVICE }} \
             --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}:latest \
             --region ${{ env.REGION }} \
             --platform managed \
-            --allow-unauthenticated \
-            --memory 256Mi \
-            --cpu 1 \
-            --max-instances 1 \
-            --concurrency 1
-  notify-sucess:
-    needs: deploy
-    runs-on: ubuntu-latest
-    if: needs.deploy.result == 'success'
+            --allow-unauthenticated
+
+  notify-security-failure:
+    name: Notify Discord (Security Failure)
+    runs-on: ubuntu-22.04
+    needs: security-checks
+    if: needs.security-checks.result == 'failure'
     steps:
-      - name: Notify Discord (Sucess)
+      - name: Notify Discord
         run: |
           curl -H "Content-Type: application/json" \
           -d '{
-            "content": "✅ **DEPLOY REALIZADO COM SUCESSO**\n\n🔹 Serviço: **${{ env.SERVICE }}**\n🔹 Projeto: **${{ env.PROJECT_ID }}**\n🔹 Branch: **${{ github.ref_name }}**\n🔹 Commit: `${{ github.sha }}`\n📝 Mensagem: _${{ github.event.head_commit.message }}_\n\n🔗 Logs:\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "content": "🚨 **DEPLOY BLOQUEADO (SEGURANÇA)**\n\n🔒 Política PROD:\n• Secrets vazados ❌\n• Vulnerabilidades HIGH / CRITICAL ❌\n• CodeQL alerts ❌\n\n🔹 Serviço: **${{ env.SERVICE }}**\n🔹 Branch: **${{ github.ref_name }}**\n📝 Commit: _${{ github.event.head_commit.message }}_\n\n🔗 Logs:\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_FAILURE }}
+
+  notify-deploy-failure:
+    name: Notify Discord (Deploy Failure)
+    runs-on: ubuntu-22.04
+    needs: deploy
+    if: needs.deploy.result == 'failure'
+    steps:
+      - name: Notify Discord
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d '{
+            "content": "❌ **DEPLOY PROD FALHOU**\n\n🔹 Serviço: **${{ env.SERVICE }}**\n🔹 Branch: **${{ github.ref_name }}**\n\n🔗 Logs:\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_FAILURE }}
+
+  notify-success:
+    name: Notify Discord (Success)
+    runs-on: ubuntu-22.04
+    needs: deploy
+    if: needs.deploy.result == 'success'
+    steps:
+      - name: Notify Discord
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d '{
+            "content": "✅ **DEPLOY PROD REALIZADO COM SUCESSO**\n\n🔹 Serviço: **${{ env.SERVICE }}**\n🔹 Branch: **${{ github.ref_name }}**\n📝 Commit: _${{ github.event.head_commit.message }}_\n\n🔗 Logs:\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' \
           ${{ secrets.DISCORD_WEBHOOK_SUCCESS }}
-
-  notify-failure:
-      runs-on: ubuntu-latest
-      needs: deploy
-      if: needs.deploy.result == 'failure'
-      steps:
-        - name: Notify Discord (Failure)
-          run: |
-            curl -H "Content-Type: application/json" \
-            -d '{
-              "content": "❌ **DEPLOY FALHOU**\n\n🔹 Serviço: **${{ env.SERVICE }}**\n🔹 Projeto: **${{ env.PROJECT_ID }}**\n🔹 Branch: **${{ github.ref_name }}**\n🔹 Commit: `${{ github.sha }}`\n\n🚨 Ver logs:\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }' \
-            ${{ secrets.DISCORD_WEBHOOK_FAILURE }}
-
