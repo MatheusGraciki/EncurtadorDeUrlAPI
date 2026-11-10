@@ -1,18 +1,22 @@
-import { createShortUrlDb, getOriginalUrlDb } from "./db";
+import {
+  createShortUrlDb,
+  getOriginalUrlDb,
+  RedisCommands,
+} from "./db";
 
-export async function createShortUrlService(originalUrl: string) {
-  try {
-    const data = await createShortUrlDb(originalUrl);
-    return data;
-  } catch (error) {
-    throw error;
-  }
+export interface UrlService {
+  create(originalUrl: string): Promise<{ shortUrl: string }>;
+  resolve(shortUrl: string): Promise<string>;
 }
 
-export async function getOriginalUrlService(shortUrl: string) {
-  try {
-    return await getOriginalUrlDb(shortUrl);
-  } catch (error) {
-    throw error;
-  }
+export function createUrlService(redis?: RedisCommands): UrlService {
+  return {
+    create: (originalUrl) => createShortUrlDb(originalUrl, redis),
+    resolve: (shortUrl) => getOriginalUrlDb(shortUrl, redis),
+  };
 }
+
+const defaultService = createUrlService();
+
+export const createShortUrlService = defaultService.create;
+export const getOriginalUrlService = defaultService.resolve;

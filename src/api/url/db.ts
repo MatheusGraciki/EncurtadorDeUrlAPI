@@ -1,33 +1,64 @@
-import "dotenv/config";
-import { Redis } from "@upstash/redis";
-import { randomBytes } from "crypto";
+import { randomBytes } from "node:crypto";
+import { getRedisClient } from "../../redis";
 
-const redis = new Redis({
-  url: process.env.REDIS_URL,
-  token: process.env.REDIS_TOKEN,
-});
+export const LINK_TTL_SECONDS = 60 * 60 * 24 * 30;
+const MAX_ID_ATTEMPTS = 10;
 
-export async function createShortUrlDb(originalUrl: string) {
-  const MAX_ATTEMPTS = 10;
-
-  for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    const shortUrl = randomBytes(6).toString("hex");
-    const exists = await redis.get(shortUrl);
-
-    if (!exists) {
-      await redis.set(shortUrl, originalUrl, { ex: 60 * 60 * 24 * 30 });
-      return { shortUrl };
-    }
-    console.error(`Colisão detectada para shortUrl "${shortUrl}", tentando novamente...`);
-  }
-  throw new Error("Não foi possível gerar uma shortUrl única após várias tentativas.");
+export interface RedisCommands {
+  get(key: string): Promise<string | null>;
+  set(
+    key: string,
+    value: string,
+    expiryMode: "EX",
+    ttlSeconds: number,
+    condition: "NX",
+  ): Promise<"OK" | null>;
 }
 
-export async function getOriginalUrlDb(shortUrl:string) {
-  const url  = await redis.get(shortUrl) 
-
-  if (!url) {
-    throw new Error("this shortUrl does not exist");
+export class ShortUrlNotFoundError extends Error {
+  constructor() {
+    super("this shortUrl does not exist");
+    this.name = "ShortUrlNotFoundError";
   }
-  return url
+}
+
+export class ShortUrlCollisionError extends Error {
+  constructor() {
+    super("Unable to generate a unique short URL");
+    this.name = "ShortUrlCollisionError";
+  }
+}
+
+export async function createShortUrlDb(
+  originalUrl: string,
+  redis: RedisCommands = getRedisClient(),
+  generateId: () => string = () => randomBytes(6).toString("hex"),
+): Promise<{ shortUrl: string }> {
+  for (let attempt = 0; attempt < MAX_ID_ATTEMPTS; attempt += 1) {
+    const shortUrl = generateId();
+    const result = await redis.set(
+      shortUrl,
+      originalUrl,
+      "EX",
+      LINK_TTL_SECONDS,
+      "NX",
+    );
+
+    if (result === "OK") {
+      return { shortUrl };
+    }
+  }
+
+  throw new ShortUrlCollisionError();
+}
+
+export async function getOriginalUrlDb(
+  shortUrl: string,
+  redis: RedisCommands = getRedisClient(),
+): Promise<string> {
+  const url = await redis.get(shortUrl);
+  if (url === null) {
+    throw new ShortUrlNotFoundError();
+  }
+  return url;
 }

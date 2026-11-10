@@ -1,15 +1,15 @@
 import { Router } from "express";
-import { createUrl, getOriginalUrl } from "./controller";
+import { createUrlController, getOriginalUrlController } from "./controller";
+import { UrlService } from "./service";
 
-const router = Router();
+export function createUrlRouter(service: UrlService): Router {
+  const router = Router();
 
-router.get("/:shortUrl", getOriginalUrl);
+  router.get("/testCiCD", (_req, res) => {
+    res.send("Hello World");
+  });
+  router.post("/create", createUrlController(service));
+  router.get("/:shortUrl", getOriginalUrlController(service));
 
-router.get("/testCiCD", (req, res) => {
-  res.send("Hello World");
-});
-
-router.post("/create", createUrl);
-
-
-export default router;
+  return router;
+}

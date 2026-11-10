@@ -1,0 +1,68 @@
+name: shortener
+
+services:
+  api:
+    image: ${API_IMAGE:?Set API_IMAGE to an immutable GHCR tag or digest}
+    container_name: shortener-api
+    restart: unless-stopped
+    env_file:
+      - .env.api
+    environment:
+      PORT: "8080"
+    expose:
+      - "8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+      - proxy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/ready"]
+      interval: 15s
+      timeout: 3s
+      retries: 4
+      start_period: 10s
+    stop_grace_period: 15s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "proxy"
+      traefik.http.routers.shortener-api.rule: "Host(`shortener-teste.initit.tech`)"
+      traefik.http.routers.shortener-api.entrypoints: "websecure"
+      traefik.http.routers.shortener-api.tls: "true"
+      traefik.http.routers.shortener-api.tls.certresolver: "letsencrypt"
+      traefik.http.services.shortener-api.loadbalancer.server.port: "8080"
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    env_file:
+      - path: .env.redis
+        required: false
+    command:
+      - /bin/sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+  internal:
+    name: shortener-internal
+    internal: true
+
+volumes:
+  redis-data:
+    external: true
+    name: ${REDIS_VOLUME_NAME:-shortener_redis-data}

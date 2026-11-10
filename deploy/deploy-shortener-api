@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly APP_DIR="/opt/apps/shortener"
+readonly COMPOSE_FILE="$APP_DIR/compose.yml"
+readonly STATE_DIR="$APP_DIR/.deploy-state"
+readonly IMAGE_PATTERN='^ghcr\.io/matheusgraciki/encurtadordeurlapi:[0-9a-f]{40}$'
+
+umask 077
+
+verify_root_controlled() {
+  local path="$1"
+  local owner mode
+  owner="$(stat -c '%U' "$path")"
+  mode="$(stat -c '%a' "$path")"
+  [[ "$owner" == "root" ]] || { echo "Unsafe owner for $path" >&2; exit 5; }
+  (( (8#$mode & 0022) == 0 )) || { echo "Unsafe permissions for $path" >&2; exit 5; }
+}
+
+is_valid_image() {
+  [[ "$1" =~ $IMAGE_PATTERN ]]
+}
+
+start_api() {
+  local image="$1"
+  API_IMAGE="$image" docker compose \
+    --project-directory "$APP_DIR" \
+    -f "$COMPOSE_FILE" \
+    up -d --pull never --no-deps --wait --wait-timeout 60 api
+}
+
+deploy_image() {
+  local image="$1"
+  local previous=""
+
+  is_valid_image "$image" || { echo "Rejected invalid image reference" >&2; exit 2; }
+  if docker inspect shortener-api >/dev/null 2>&1; then
+    previous="$(docker inspect --format '{{.Config.Image}}' shortener-api)"
+  fi
+
+  docker pull "$image"
+  if start_api "$image"; then
+    mkdir -p "$STATE_DIR"
+    [[ -z "$previous" ]] || printf '%s\n' "$previous" > "$STATE_DIR/previous-image"
+    printf '%s\n' "$image" > "$STATE_DIR/current-image"
+    echo "API is healthy: $image"
+    return
+  fi
+
+  echo "New API failed its healthcheck" >&2
+  if [[ -n "$previous" ]] && is_valid_image "$previous"; then
+    echo "Restoring previous API image" >&2
+    docker pull "$previous"
+    start_api "$previous"
+  fi
+  exit 1
+}
+
+rollback() {
+  local previous_file="$STATE_DIR/previous-image"
+  [[ -r "$previous_file" ]] || { echo "No previous image recorded" >&2; exit 3; }
+  deploy_image "$(<"$previous_file")"
+}
+
+[[ -f "$COMPOSE_FILE" ]] || { echo "Compose file not found" >&2; exit 4; }
+verify_root_controlled "$APP_DIR"
+verify_root_controlled "$COMPOSE_FILE"
+
+case "${1:-}" in
+  rollback) rollback ;;
+  *) deploy_image "${1:-}" ;;
+esac
