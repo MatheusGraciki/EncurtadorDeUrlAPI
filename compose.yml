@@ -27,7 +27,7 @@ services:
     labels:
       traefik.enable: "true"
       traefik.docker.network: "proxy"
-      traefik.http.routers.shortener-api.rule: "Host(`shortener-teste.initit.tech`)"
+      traefik.http.routers.shortener-api.rule: "Host(`go.initit.tech`)"
       traefik.http.routers.shortener-api.entrypoints: "websecure"
       traefik.http.routers.shortener-api.tls: "true"
       traefik.http.routers.shortener-api.tls.certresolver: "letsencrypt"
