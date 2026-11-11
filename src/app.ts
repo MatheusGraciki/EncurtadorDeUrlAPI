@@ -12,15 +12,23 @@ export function createApp(dependencies: AppDependencies = {}): Express {
   const app = express();
   const urlService = dependencies.urlService ?? createUrlService();
 
-  app.disable("x-powered-by");
-  app.use(express.json({ limit: "16kb" }));
-  app.use(
-    cors({
-      origin: "*",
-      methods: ["GET", "POST", "DELETE"],
-      allowedHeaders: ["Content-Type"],
-    }),
-  );
+
+
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ??
+  "http://localhost:5173"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "DELETE"],
+    allowedHeaders: ["Content-Type"],
+  }),
+);
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ status: "ok" });
